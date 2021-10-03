@@ -1,47 +1,59 @@
-FROM maven:3.8.2-jdk-8 AS builder
-
-ARG ATLAS_VERSION=2.2.0
-
-ENV MAVEN_OPTS "-Xms2g -Xmx2g"
- 
-RUN cd /tmp \
-    && wget http://mirror.linux-ia64.org/apache/atlas/${ATLAS_VERSION}/apache-atlas-${ATLAS_VERSION}-sources.tar.gz \
-    && mkdir -p /tmp/atlas-src \
-    && tar --strip-components 1 -xzvf apache-atlas-${ATLAS_VERSION}-sources.tar.gz -C /tmp/atlas-src
-
-RUN cd /tmp/atlas-src \
-    && mvn -Pdist -DskipTests clean package > /tmp/mvn.log \
-    && tail -100 /tmp/mvn.log
-
-RUN mkdir -p /opt/atlas \
-    && tar --strip-components 1 -xzvf /tmp/atlas-src/distro/target/apache-atlas-${ATLAS_VERSION}-server.tar.gz -C /opt/atlas
-
-
-FROM openjdk:8-jdk-buster
+FROM scratch
+FROM ubuntu:20.04
+LABEL maintainer="vadim@clusterside.com"
+ARG VERSION=2.2.0
 
 RUN apt-get update \
     && apt-get -y upgrade \
-    && apt-get -y install apt-utils python \
+    && apt-get -y install apt-utils \
+    && apt-get -y install \
+        maven \
+        wget \
+        git \
+        python \
+        openjdk-8-jdk-headless \
+        patch \
+	unzip \
+    && cd /tmp \
+    && wget http://mirror.linux-ia64.org/apache/atlas/${VERSION}/apache-atlas-${VERSION}-sources.tar.gz \
+    && mkdir -p /opt/gremlin \
+    && mkdir -p /tmp/atlas-src \
+    && tar --strip 1 -xzvf apache-atlas-${VERSION}-sources.tar.gz -C /tmp/atlas-src \
+    && rm apache-atlas-${VERSION}-sources.tar.gz \
+    && cd /tmp/atlas-src \
+    && sed -i 's/http:\/\/repo1.maven.org\/maven2/https:\/\/repo1.maven.org\/maven2/g' pom.xml \
+    && export MAVEN_OPTS="-Xms2g -Xmx2g" \
+    && export JAVA_HOME="/usr/lib/jvm/java-8-openjdk-amd64" \
+    && mvn clean -Dmaven.repo.local=/tmp/.mvn-repo -Dhttps.protocols=TLSv1.2 -DskipTests package -Pdist,embedded-hbase-solr \
+    && tar -xzvf /tmp/atlas-src/distro/target/apache-atlas-${VERSION}-server.tar.gz -C /opt \
+    && rm -Rf /tmp/atlas-src \
+    && rm -Rf /tmp/.mvn-repo \
+    && apt-get -y --purge remove \
+        maven \
+        git \
+    && apt-get -y remove openjdk-11-jre-headless \
     && apt-get -y autoremove \
     && apt-get -y clean
 
-VOLUME ["/opt/atlas/conf", "/opt/atlas/logs", "/opt/atlas/data"]
+VOLUME ["/opt/apache-atlas-${VERSION}/conf", "/opt/apache-atlas-${VERSION}/logs"]
 
-# RUN rm -r /opt/atlas
-# RUN mkdir /opt/atlas \
-RUN groupadd hadoop \
-     && useradd -m -d /opt/atlas -g hadoop atlas \
-     && chown -R atlas:hadoop /opt/atlas \
-     && chgrp -R 0 /opt/atlas \
-     && chmod -R g=u /opt/atlas
-     
-# COPY --from=builder --chown=atlas /opt/atlas /opt/atlas
+COPY atlas_start.py.patch atlas_config.py.patch /opt/apache-atlas-${VERSION}/bin/
 
-# USER atlas
-USER 1001
+RUN cd /opt/apache-atlas-${VERSION}/bin \
+    && patch -b -f < atlas_start.py.patch \
+    && patch -b -f < atlas_config.py.patch
 
-COPY --from=builder --chown=1001 /opt/atlas /opt/atlas
+COPY conf/hbase/hbase-site.xml.template /opt/apache-atlas-${VERSION}/conf/hbase/hbase-site.xml.template
+COPY conf/atlas-env.sh /opt/apache-atlas-${VERSION}/conf/atlas-env.sh
 
-COPY atlas/ /opt/atlas/
+COPY conf/gremlin /opt/gremlin/
 
-CMD [ "/opt/atlas/bin/start.sh" ]
+RUN cd /opt/apache-atlas-${VERSION} \
+    && ./bin/atlas_start.py -setup || true
+
+RUN cd /opt/apache-atlas-${VERSION} \
+    && ./bin/atlas_start.py & \
+    touch /opt/apache-atlas-${VERSION}/logs/application.log \
+    && tail -f /opt/apache-atlas-${VERSION}/logs/application.log | sed '/AtlasAuthenticationFilter.init(filterConfig=null)/ q' \
+    && sleep 10 \
+    && /opt/apache-atlas-${VERSION}/bin/atlas_stop.py
