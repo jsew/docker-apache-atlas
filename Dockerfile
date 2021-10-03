@@ -39,7 +39,8 @@ RUN groupadd hadoop \
 COPY --from=builder --chown=atlas /opt/atlas /opt/atlas
 COPY --from=builder --chown=1001 /opt/atlas /opt/atlas
 
-USER atlas
+# USER atlas
+USER 1001
 
 COPY atlas/ /opt/atlas/
 
