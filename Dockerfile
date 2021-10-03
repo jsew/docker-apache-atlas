@@ -28,8 +28,9 @@ RUN apt-get update \
 VOLUME ["/opt/atlas/conf", "/opt/atlas/logs", "/opt/atlas/data"]
 
 
-RUN mkdir /opt/atlas \
-    && groupadd hadoop \
+# RUN mkdir /opt/atlas \
+#    && groupadd hadoop \
+RUN groupadd hadoop \    
     && useradd -m -d /opt/atlas -g hadoop atlas \
     && chown -R atlas:hadoop /opt/atlas
 
