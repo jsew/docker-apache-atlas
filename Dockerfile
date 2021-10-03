@@ -35,10 +35,12 @@ RUN groupadd hadoop \
      && chgrp -R 0 /opt/atlas \
      && chmod -R g=u /opt/atlas
      
-COPY --from=builder --chown=atlas /opt/atlas /opt/atlas
+# COPY --from=builder --chown=atlas /opt/atlas /opt/atlas
 
 # USER atlas
 USER 1001
+
+COPY --from=builder --chown=1001 /opt/atlas /opt/atlas
 
 COPY atlas/ /opt/atlas/
 
