@@ -31,7 +31,7 @@ VOLUME ["/opt/atlas/conf", "/opt/atlas/logs", "/opt/atlas/data"]
 # RUN mkdir /opt/atlas \
 RUN groupadd hadoop \
      && useradd -m -d /opt/atlas -g hadoop atlas \
-     && chown -R atlas:hadoop /opt/atlas
+     && chown -R atlas:hadoop /opt/atlas \
      && chgrp -R 0 /opt/atlas \
      && chmod -R g=u /opt/atlas
      
