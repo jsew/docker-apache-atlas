@@ -1,59 +1,60 @@
-FROM scratch
-FROM ubuntu:20.04
-LABEL maintainer="vadim@clusterside.com"
-ARG VERSION=2.2.0
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-RUN apt-get update \
-    && apt-get -y upgrade \
-    && apt-get -y install apt-utils \
-    && apt-get -y install \
-        maven \
-        wget \
-        git \
-        python \
-        openjdk-8-jdk-headless \
-        patch \
-	unzip \
-    && cd /tmp \
-    && wget http://mirror.linux-ia64.org/apache/atlas/${VERSION}/apache-atlas-${VERSION}-sources.tar.gz \
-    && mkdir -p /opt/gremlin \
-    && mkdir -p /tmp/atlas-src \
-    && tar --strip 1 -xzvf apache-atlas-${VERSION}-sources.tar.gz -C /tmp/atlas-src \
-    && rm apache-atlas-${VERSION}-sources.tar.gz \
-    && cd /tmp/atlas-src \
-    && sed -i 's/http:\/\/repo1.maven.org\/maven2/https:\/\/repo1.maven.org\/maven2/g' pom.xml \
-    && export MAVEN_OPTS="-Xms2g -Xmx2g" \
-    && export JAVA_HOME="/usr/lib/jvm/java-8-openjdk-amd64" \
-    && mvn clean -Dmaven.repo.local=/tmp/.mvn-repo -Dhttps.protocols=TLSv1.2 -DskipTests package -Pdist,embedded-hbase-solr \
-    && tar -xzvf /tmp/atlas-src/distro/target/apache-atlas-${VERSION}-server.tar.gz -C /opt \
-    && rm -Rf /tmp/atlas-src \
-    && rm -Rf /tmp/.mvn-repo \
-    && apt-get -y --purge remove \
-        maven \
-        git \
-    && apt-get -y remove openjdk-11-jre-headless \
-    && apt-get -y autoremove \
-    && apt-get -y clean
+FROM ubuntu:18.04
 
-VOLUME ["/opt/apache-atlas-${VERSION}/conf", "/opt/apache-atlas-${VERSION}/logs"]
+# Install Git, which is missing from the Ubuntu base images.
+RUN apt-get update && apt-get install -y git python
 
-COPY atlas_start.py.patch atlas_config.py.patch /opt/apache-atlas-${VERSION}/bin/
+# Install Java.
+RUN apt-get update && apt-get install -y openjdk-8-jdk
+ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64
 
-RUN cd /opt/apache-atlas-${VERSION}/bin \
-    && patch -b -f < atlas_start.py.patch \
-    && patch -b -f < atlas_config.py.patch
+# Install Maven.
 
-COPY conf/hbase/hbase-site.xml.template /opt/apache-atlas-${VERSION}/conf/hbase/hbase-site.xml.template
-COPY conf/atlas-env.sh /opt/apache-atlas-${VERSION}/conf/atlas-env.sh
+RUN apt-get update && apt-get install -y maven
+ENV MAVEN_HOME /usr/share/maven
 
-COPY conf/gremlin /opt/gremlin/
+# Add Java and Maven to the path.
+ENV PATH /usr/java/bin:/usr/local/apache-maven/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-RUN cd /opt/apache-atlas-${VERSION} \
-    && ./bin/atlas_start.py -setup || true
+# Working directory
+WORKDIR /root
 
-RUN cd /opt/apache-atlas-${VERSION} \
-    && ./bin/atlas_start.py & \
-    touch /opt/apache-atlas-${VERSION}/logs/application.log \
-    && tail -f /opt/apache-atlas-${VERSION}/logs/application.log | sed '/AtlasAuthenticationFilter.init(filterConfig=null)/ q' \
-    && sleep 10 \
-    && /opt/apache-atlas-${VERSION}/bin/atlas_stop.py
+# Pull down Atlas and build it into /root/atlas-bin.
+RUN git clone https://github.com/apache/atlas.git -b master
+
+RUN echo 'package-lock=false' >> ./atlas/.npmrc
+
+RUN echo 'package-lock.json' >> ./atlas/.gitignore
+
+# Memory requirements
+ENV MAVEN_OPTS "-Xms2g -Xmx2g"
+# RUN export MAVEN_OPTS="-Xms2g -Xmx2g"
+
+# Remove -DskipTests if unit tests are to be included
+RUN mvn clean install -DskipTests -Pdist,embedded-hbase-solr -f ./atlas/pom.xml
+RUN mkdir -p atlas-bin
+RUN tar xzf /root/atlas/distro/target/*bin.tar.gz --strip-components 1 -C /root/atlas-bin
+
+# Set env variables, add it to the path, and start Atlas.
+ENV MANAGE_LOCAL_SOLR true
+ENV MANAGE_LOCAL_HBASE true
+ENV PATH /root/atlas-bin/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+EXPOSE 21000
+
+CMD ["/bin/bash", "-c", "/root/atlas-bin/bin/atlas_start.py; tail -fF /root/atlas-bin/logs/application.log"]
