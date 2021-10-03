@@ -32,9 +32,12 @@ VOLUME ["/opt/atlas/conf", "/opt/atlas/logs", "/opt/atlas/data"]
 #    && groupadd hadoop \
 RUN groupadd hadoop \    
     && useradd -m -d /opt/atlas -g hadoop atlas \
-    && chown -R atlas:hadoop /opt/atlas
+    && chown -R atlas:hadoop /opt/atlas \
+    && useradd -m -d /opt/atlas -g hadoop 1001 \
+    && chown -R 1001:hadoop /opt/atlas    
 
 COPY --from=builder --chown=atlas /opt/atlas /opt/atlas
+COPY --from=builder --chown=1001 /opt/atlas /opt/atlas
 
 USER atlas
 
