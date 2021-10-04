@@ -30,12 +30,14 @@ VOLUME ["/opt/atlas/conf", "/opt/atlas/logs", "/opt/atlas/data"]
 
 # RUN mkdir /opt/atlas \
 #    && groupadd hadoop \
-RUN groupadd hadoop \    
+# RUN groupadd hadoop \    
 #    && useradd -m -d /opt/atlas -g hadoop atlas \
 #    && chown -R atlas:hadoop /opt/atlas \
-    && useradd -m -d /opt/atlas -g hadoop 1001 \
-    && chown -R 1001:hadoop /opt/atlas    
+#    && useradd -m -d /opt/atlas -g hadoop 1001 \
+#    && chown -R 1001:hadoop /opt/atlas    
 
+RUN chgrp -R 0 /opt/atlas /opt/atlas && \
+    chmod -R g=u /opt/atlas /opt/atlas
 # COPY --from=builder --chown=atlas /opt/atlas /opt/atlas
 COPY --from=builder --chown=1001 /opt/atlas /opt/atlas
 
