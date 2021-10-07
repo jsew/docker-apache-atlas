@@ -30,9 +30,9 @@ VOLUME ["/opt/atlas/conf", "/opt/atlas/logs", "/opt/atlas/data"]
 
 # RUN mkdir /opt/atlas \
 #    && groupadd hadoop \
-# RUN groupadd hadoop \    
-#    && useradd -m -d /opt/atlas -g hadoop atlas \
-#    && chown -R atlas:hadoop /opt/atlas \
+RUN groupadd hadoop \    
+    && useradd -m -d /opt/atlas -g hadoop atlas \
+    && chown -R atlas:hadoop /opt/atlas \
 #    && useradd -m -d /opt/atlas -g hadoop 1001 \
 #    && chown -R 1001:hadoop /opt/atlas    
 
