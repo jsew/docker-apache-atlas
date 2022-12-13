@@ -1,4 +1,5 @@
-FROM maven:3.8.2-jdk-8 AS builder
+# FROM maven:3.8.2-jdk-8 AS builder
+FROM maven:3.8.6-openjdk-18 AS builder
 
 # ARG ATLAS_VERSION=2.2.0
 ARG ATLAS_VERSION=2.3.0
