@@ -6,10 +6,11 @@ ARG ATLAS_VERSION=2.3.0
 
 ENV MAVEN_OPTS "-Xms2g -Xmx2g"
  
-RUN cd /tmp \
-    && wget http://mirror.linux-ia64.org/apache/atlas/${ATLAS_VERSION}/apache-atlas-${ATLAS_VERSION}-sources.tar.gz \
-    && mkdir -p /tmp/atlas-src \
-    && tar --strip-components 1 -xzvf apache-atlas-${ATLAS_VERSION}-sources.tar.gz -C /tmp/atlas-src
+RUN cd /tmp 
+ADD  http://mirror.linux-ia64.org/apache/atlas/${ATLAS_VERSION}/apache-atlas-${ATLAS_VERSION}-sources.tar.gz 
+#    && wget http://mirror.linux-ia64.org/apache/atlas/${ATLAS_VERSION}/apache-atlas-${ATLAS_VERSION}-sources.tar.gz \
+RUN  mkdir -p /tmp/atlas-src \
+     && tar --strip-components 1 -xzvf apache-atlas-${ATLAS_VERSION}-sources.tar.gz -C /tmp/atlas-src
 
 RUN cd /tmp/atlas-src \
 #   && mvn -Pdist -DskipTests clean package > /tmp/mvn.log \
