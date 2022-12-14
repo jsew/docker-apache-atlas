@@ -21,8 +21,8 @@ RUN mkdir -p /opt/atlas \
     && tar --strip-components 1 -xzvf /tmp/atlas-src/distro/target/apache-atlas-${ATLAS_VERSION}-server.tar.gz -C /opt/atlas
 
 
-FROM openjdk:8-jdk-buster
-
+# FROM openjdk:8-jdk-buster
+FROM openjdk:18-jdk-buster
 RUN apt-get update \
     && apt-get -y upgrade \
     && apt-get -y install apt-utils python \
